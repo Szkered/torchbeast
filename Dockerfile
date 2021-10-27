@@ -79,12 +79,12 @@ RUN mkdir /root/.ssh/
 RUN ssh-keyscan github.com > /root/.ssh/known_hosts
 
 # Collect and install grpc.
-RUN git submodule update --init --recursive third_party/grpc
+RUN git submodule update --init --recursive
 
 RUN ./scripts/install_grpc.sh
 
 # Copy nest from host machine, and install it.
-COPY third_party/nest/.git third_party/nest/.git
+# COPY third_party/nest/.git third_party/nest/.git
 
 WORKDIR /src/torchbeast/third_party/nest
 
