@@ -76,8 +76,6 @@ RUN git reset --hard
 # Collect and install grpc.
 RUN git submodule update --init --recursive
 
-RUN ./scripts/install_grpc.sh
-
 # Install nest.
 RUN pip install nest/
 
@@ -91,11 +89,15 @@ RUN python setup.py install
 
 ENV OMP_NUM_THREADS 1
 
-# Run.
-CMD ["bash", "-c", "python -m torchbeast.polybeast \
-       --num_actors 10 \
-       --total_steps 200000000 \
-       --unroll_length 60 --batch_size 32"]
+RUN apt-get install ffmpeg libsm6 libxext6  -y
+
+CMD ["/bin/bash"]
+
+# # Run.
+# CMD ["bash", "-c", "python -m torchbeast.polybeast \
+#        --num_actors 10 \
+#        --total_steps 200000000 \
+#        --unroll_length 60 --batch_size 32"]
 
 
 # Docker commands:
