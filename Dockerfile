@@ -91,6 +91,11 @@ ENV OMP_NUM_THREADS 1
 
 RUN apt-get install ffmpeg libsm6 libxext6  -y
 
+RUN pip install gym[accept-rom-license]
+
+# install torch that's compatible with CUDA 11.4
+RUN pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
+
 CMD ["/bin/bash"]
 
 # # Run.
