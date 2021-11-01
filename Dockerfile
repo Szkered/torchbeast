@@ -1,113 +1,30 @@
-# syntax=docker/dockerfile:experimental
-FROM ubuntu:18.04
+FROM nvidia/cuda:11.2.2-cudnn8-devel-ubuntu20.04
+ARG DEBIAN_FRONTEND=noninteractive
+RUN ln -sf /user/local/cuda-11.2 /usr/local/cuda
 
-SHELL ["/bin/bash", "-c"]
+RUN sed -i "s/archive.ubuntu.com/mirror.0x.sg/g" /etc/apt/sources.list
 
-RUN apt-get update && apt-get install -y \
-    python3-setuptools \
-    python3-pip \
-    git \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    wget \
-    pkg-config
+# Install dependencies
+COPY apt_install.txt .
+RUN apt-get update && apt-get install -y `cat apt_install.txt`
 
-WORKDIR /src
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+# Config pip
+RUN python3 -m pip config set global.index-url http://pypi.ai.seacloud.garenanow.com/root/dev
+RUN python3 -m pip config set global.trusted-host pypi.ai.seacloud.garenanow.com
 
-RUN bash Miniconda3-latest-Linux-x86_64.sh -b
+RUN pip install --upgrade cmake
 
-ENV PATH /root/miniconda3/bin:$PATH
+RUN pip install gym[accept-rom-license] torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
 
-ENV CONDA_PREFIX /root/miniconda3/envs/torchbeast
-
-# Clear .bashrc (it refuses to run non-interactively otherwise).
-RUN echo > ~/.bashrc
-
-# Add conda logic to .bashrc.
-RUN conda init bash
-
-# Create new environment and install some dependencies.
-RUN conda create -y -n torchbeast python=3.7 \
-    protobuf \
-    numpy \
-    ninja \
-    pyyaml \
-    mkl \
-    mkl-include \
-    setuptools \
-    cmake \
-    cffi \
-    typing
-
-# Activate environment in .bashrc.
-RUN echo "conda activate torchbeast" >> /root/.bashrc
-
-# Make bash excecute .bashrc even when running non-interactively.
-ENV BASH_ENV /root/.bashrc
-
-# Install PyTorch.
-
-# Would like to install PyTorch via pip. Unfortunately, there's binary
-# incompatability issues (https://github.com/pytorch/pytorch/issues/18128).
-# Otherwise, this would work:
-# # # Install PyTorch. This needs increased Docker memory.
-# # # (https://github.com/pytorch/pytorch/issues/1022)
-# # RUN pip download torch
-# # RUN pip install torch*.whl
-
-RUN git clone --single-branch --branch v1.2.0 --recursive https://github.com/pytorch/pytorch
-
-WORKDIR /src/pytorch
-
-ENV CMAKE_PREFIX_PATH ${CONDA_PREFIX}
-
-RUN python setup.py install
-
-# Clone TorchBeast.
+# install TorchBeast.
 WORKDIR /src/torchbeast
-
 COPY .git /src/torchbeast/.git
-
 RUN git reset --hard
-
-# Collect and install grpc.
 RUN git submodule update --init --recursive
-
-# Install nest.
 RUN pip install nest/
-
-# Install PolyBeast's requirements.
 RUN pip install -r requirements.txt
-
-# Compile libtorchbeast.
-ENV LD_LIBRARY_PATH ${CONDA_PREFIX}/lib:${LD_LIBRARY_PATH}
-
 RUN python setup.py install
-
-ENV OMP_NUM_THREADS 1
-
-RUN apt-get install ffmpeg libsm6 libxext6  -y
-
-RUN pip install gym[accept-rom-license]
-
-# install torch that's compatible with CUDA 11.4
-RUN pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio===0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
 
 CMD ["/bin/bash"]
-
-# # Run.
-# CMD ["bash", "-c", "python -m torchbeast.polybeast \
-#        --num_actors 10 \
-#        --total_steps 200000000 \
-#        --unroll_length 60 --batch_size 32"]
-
-
-# Docker commands:
-#   docker rm torchbeast -v
-#   docker build -t torchbeast .
-#   docker run --name torchbeast torchbeast
-# or
-#   docker run --name torchbeast -it torchbeast /bin/bash
